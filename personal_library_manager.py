@@ -17,7 +17,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Load Lottie animations
+# Load Lottie animation
+@st.cache_data
 def load_lottieurl(url):
     try:
         r = requests.get(url)
@@ -27,111 +28,109 @@ def load_lottieurl(url):
     except:
         return None
 
+# Load and save library data
+LIBRARY_FILE = 'library.json'
+
+def load_library():
+    if os.path.exists(LIBRARY_FILE):
+        with open(LIBRARY_FILE, 'r') as file:
+            return json.load(file)
+    return []
+
+def save_library(library):
+    with open(LIBRARY_FILE, 'w') as file:
+        json.dump(library, file, indent=4)
+
 # Initialize session state
 if 'library' not in st.session_state:
-    st.session_state.library = []
+    st.session_state.library = load_library()
 if 'current_view' not in st.session_state:
     st.session_state.current_view = "library"
 
-# Load library data
-if os.path.exists('library.json'):
-    with open('library.json', 'r') as file:
-        st.session_state.library = json.load(file)
-
-# Save library data
-def save_library():
-    with open('library.json', 'w') as file:
-        json.dump(st.session_state.library, file)
-
-# Add a book
-def add_book(title, author, year, genre, read_status):
-    book = {
-        'title': title,
-        'author': author,
-        'publication_year': year,
-        'genre': genre,
-        'read_status': read_status,
-        'added_date': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    st.session_state.library.append(book)
-    save_library()
-    st.success("Book added successfully!")
-    time.sleep(1)
-    st.rerun()
-
-# Remove a book
-def remove_book(index):
-    del st.session_state.library[index]
-    save_library()
-    st.success("Book removed successfully!")
-    st.rerun()
-
 # Sidebar navigation
 st.sidebar.title("📚 Navigation")
+lottie_book = load_lottieurl("https://assets9.lottiefiles.com/temp/lf20_aKAfIn.json")
+if lottie_book:
+    st.sidebar.lottie(lottie_book, height=200)
 nav_options = st.sidebar.radio("Choose an option:", ["View Library", "Add Book", "Search Books", "Library Statistics"])
 st.session_state.current_view = nav_options.lower().replace(" ", "_")
 
-# App header
-st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>📚 Personal Library Manager</h1>", unsafe_allow_html=True)
+# Page header
+st.title("📚 Personal Library Manager")
 
+# Add Book View
 if st.session_state.current_view == "add_book":
-    st.subheader("📝 Add a New Book")
-    with st.form(key='add_book_form'):
+    st.header("📝 Add a New Book")
+    with st.form("add_book_form"):
         title = st.text_input("Book Title")
         author = st.text_input("Author")
-        year = st.number_input("Publication Year", min_value=1000, max_value=datetime.now().year, step=1)
-        genre = st.selectbox("Genre", ["Fiction", "Non-Fiction", "Science Fiction", "Fantasy", "Mystery", "Romance", "Thriller", "Biography", "History", "Self-Help", "Poetry", "Science", "Philosophy", "Religion", "Art", "Other"])
+        publication_year = st.number_input("Publication Year", min_value=1000, max_value=datetime.now().year, step=1)
+        genre = st.text_input("Genre")
         read_status = st.radio("Read Status", ["Read", "Unread"], horizontal=True) == "Read"
         submit_button = st.form_submit_button("Add Book")
+        
         if submit_button and title and author:
-            add_book(title, author, year, genre, read_status)
+            new_book = {
+                "title": title,
+                "author": author,
+                "publication_year": publication_year,
+                "genre": genre,
+                "read_status": read_status,
+                "added_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            st.session_state.library.append(new_book)
+            save_library(st.session_state.library)
+            st.success("Book added successfully!")
+            st.balloons()
 
+# View Library
 elif st.session_state.current_view == "view_library":
-    st.subheader("📖 Your Library")
+    st.header("📖 Your Library")
     if not st.session_state.library:
         st.warning("Your library is empty. Add some books to get started!")
     else:
         for i, book in enumerate(st.session_state.library):
-            with st.expander(f"{book['title']} ({'Read' if book['read_status'] else 'Unread'})"):
-                st.write(f"**Author:** {book['author']}")
-                st.write(f"**Year:** {book['publication_year']}")
+            with st.expander(f"📖 {book['title']} - {book['author']}"):
+                st.write(f"**Publication Year:** {book['publication_year']}")
                 st.write(f"**Genre:** {book['genre']}")
+                st.write(f"**Status:** {'✅ Read' if book['read_status'] else '📖 Unread'}")
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button("Remove", key=f"remove_{i}"):
-                        remove_book(i)
+                        st.session_state.library.pop(i)
+                        save_library(st.session_state.library)
+                        st.rerun()
                 with col2:
-                    new_status = not book['read_status']
-                    if st.button(f"Mark as {'Read' if new_status else 'Unread'}", key=f"status_{i}"):
-                        book['read_status'] = new_status
-                        save_library()
+                    if st.button("Toggle Read Status", key=f"toggle_{i}"):
+                        st.session_state.library[i]['read_status'] = not book['read_status']
+                        save_library(st.session_state.library)
                         st.rerun()
 
+# Search Books
 elif st.session_state.current_view == "search_books":
-    st.subheader("🔍 Search Books")
+    st.header("🔍 Search Books")
     search_term = st.text_input("Enter search term:")
-    search_by = st.selectbox("Search by:", ["Title", "Author", "Genre"])
-    if st.button("Search") and search_term:
-        results = [book for book in st.session_state.library if search_term.lower() in book[search_by.lower()].lower()]
-        if results:
-            for book in results:
-                st.write(f"**{book['title']}** by {book['author']} ({'Read' if book['read_status'] else 'Unread'})")
-        else:
-            st.warning("No books found.")
+    search_results = [book for book in st.session_state.library if search_term.lower() in book['title'].lower()]
+    if search_results:
+        for book in search_results:
+            st.write(f"📖 {book['title']} - {book['author']}")
+    elif search_term:
+        st.warning("No books found matching your search criteria.")
 
+# Library Statistics
 elif st.session_state.current_view == "library_statistics":
-    st.subheader("📊 Library Statistics")
+    st.header("📊 Library Statistics")
     total_books = len(st.session_state.library)
-    read_books = sum(1 for book in st.session_state.library if book['read_status'])
-    unread_books = total_books - read_books
-    if total_books > 0:
-        st.metric("Total Books", total_books)
-        st.metric("Books Read", read_books)
-        st.metric("Unread Books", unread_books)
-        fig = go.Figure(data=[go.Pie(labels=['Read', 'Unread'], values=[read_books, unread_books], hole=.3)])
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("No data available. Add books to see statistics.")
+    read_books = sum(book['read_status'] for book in st.session_state.library)
+    st.metric("Total Books", total_books)
+    st.metric("Books Read", read_books)
+    st.metric("Percentage Read", f"{(read_books / total_books * 100) if total_books else 0:.1f}%")
+    if total_books:
+        genres = pd.DataFrame({
+            "Genre": [book['genre'] for book in st.session_state.library],
+        }).value_counts().reset_index()
+        genres.columns = ["Genre", "Count"]
+        st.plotly_chart(px.bar(genres, x="Genre", y="Count", color="Count", title="Books by Genre"))
 
 st.markdown("---")
-st.markdown("Copyright © 2025 Muhammad Sufiyan Personal Library Manager", unsafe_allow_html=True)
+st.markdown("© 2025 Muhammad Sufiyan - Personal Library Manager")
