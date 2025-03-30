@@ -3,11 +3,8 @@ import pandas as pd
 import json
 import os
 from datetime import datetime
-import time 
-import requests
 import plotly.express as px 
 import plotly.graph_objects as go 
-from streamlit_lottie import st_lottie
 
 st.set_page_config(
     page_title="Personal Library Manager",
@@ -16,12 +13,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"    
 )
 
-# Load Library Data
+# Initialize session state variables
+if "book_added" not in st.session_state:
+    st.session_state.book_added = False
+if "book_removed" not in st.session_state:
+    st.session_state.book_removed = False
 
+# Load Library Data
 def load_library():
     if os.path.exists('library.json'):
-        with open('library.json', 'r') as file:
-            st.session_state.library = json.load(file)
+        try:
+            with open('library.json', 'r') as file:
+                st.session_state.library = json.load(file)
+        except (json.JSONDecodeError, ValueError):
+            st.session_state.library = []
     else:
         st.session_state.library = []
 
@@ -33,7 +38,7 @@ def add_book(title, author, publication_year, genre, read_status):
     book = {
         'title': title,
         'author': author,
-        'publication_year': publication_year,
+        'publication_year': int(publication_year),
         'genre': genre,
         'read_status': read_status,
         'added_date': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -56,7 +61,7 @@ def get_library_stats():
     for book in st.session_state.library:
         genres[book['genre']] = genres.get(book['genre'], 0) + 1
         authors[book['author']] = authors.get(book['author'], 0) + 1
-        decade = (book['publication_year'] // 10) * 10
+        decade = (int(book['publication_year']) // 10) * 10
         decades[decade] = decades.get(decade, 0) + 1
 
     return {
@@ -94,7 +99,7 @@ def create_visualization(stats):
 # UI Navigation
 load_library()
 st.sidebar.title("Navigation")
-options = st.sidebar.radio("Choose an option:", ["View Library", "Add Book", "Library Statistics"])
+options = st.sidebar.selectbox("Choose an option:", ["View Library", "Add Book", "Library Statistics"])
 st.title("Personal Library Manager")
 
 if options == "Add Book":
@@ -102,12 +107,12 @@ if options == "Add Book":
     with st.form("add_book_form"):
         title = st.text_input("Title")
         author = st.text_input("Author")
-        year = st.number_input("Publication Year", min_value=1000, max_value=datetime.now().year, value=2023)
+        year = int(st.number_input("Publication Year", min_value=1000, max_value=datetime.now().year, value=2023))
         genre = st.selectbox("Genre", ["Fiction", "Non-Fiction", "Science", "Technology", "History", "Fantasy"])
         read_status = st.radio("Read Status", ["Read", "Unread"], horizontal=True) == "Read"
         if st.form_submit_button("Add Book"):
             add_book(title, author, year, genre, read_status)
-    if st.session_state.get("book_added"):
+    if st.session_state.book_added:
         st.success("Book added successfully!")
         st.session_state.book_added = False
 
@@ -125,14 +130,14 @@ elif options == "View Library":
                 with col1:
                     if st.button("Remove", key=f"remove_{i}"):
                         remove_book(i)
-                        st.rerun()
+                        st.experimental_rerun()
                 with col2:
                     new_status = not book['read_status']
                     label = "Mark as Read" if not book['read_status'] else "Mark as Unread"
                     if st.button(label, key=f"status_{i}"):
                         st.session_state.library[i]['read_status'] = new_status
                         save_library()
-                        st.rerun()
+                        st.experimental_rerun()
 
 elif options == "Library Statistics":
     st.header("Library Statistics")
@@ -148,10 +153,6 @@ elif options == "Library Statistics":
 
 st.markdown("---")
 st.markdown("Copyright © 2025 Muhammad Sufiyan Personal Library Manager")
-
-
-
-
 
 
 
