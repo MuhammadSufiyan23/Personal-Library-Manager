@@ -4,7 +4,7 @@
     "author":"Eric Matthes",
     "publication_year": 2019,
     "genre":"programming",
-    "read_status": false'
+    "read_status": false',
     "added_data": "2025-03-28 11:08:20"
   },
 
@@ -13,7 +13,7 @@
     "author": "Al Sweigart",
     "publication_year": 2020,
     "genre": "programming",
-    "read_status": True,
+    "read_status": true,
     "added_date": "2025-03-29 14:25:10"
 },
 
@@ -22,7 +22,7 @@
     "author": "Robert C. Martin",
     "publication_year": 2008,
     "genre": "software engineering",
-    "read_status": False,
+    "read_status": false,
     "added_date": "2025-03-30 09:12:45"
 },
 
@@ -31,7 +31,7 @@
     "author": "Andrew Hunt, David Thomas",
     "publication_year": 1999,
     "genre": "software development",
-    "read_status": True,
+    "read_status": true,
     "added_date": "2025-03-30 15:30:00"
 }
   
